@@ -8,6 +8,9 @@ import InstalacionesPage from "./pages/InstalacionesPage";
 import InstalacionDeletePage from "./pages/InstalacionDeletePage";
 import InstalacionFormPage from "./pages/InstalacionFormPage";
 import ReservasPage from "./pages/ReservasPage";
+import HorariosPage from "./pages/HorariosPage";
+import HorarioFormPage from "./pages/HorarioFormPage";
+import HorarioDeletePage from "./pages/HorarioDeletePage";
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -45,6 +48,22 @@ const router = createBrowserRouter([
         path: "mis-reservas",
         element: <ReservasPage />,
       },
+      {
+        path: "horarios",
+        element: <HorariosPage/>,
+      },
+      {
+        path: "horario/add",
+        element: <HorarioFormPage/>,
+      },
+      {
+        path: "horario/edit/:_id",
+        element: <HorarioFormPage/>,
+      },
+      {
+        path: "horario/del/:_id",
+        element: <HorarioDeletePage/>,
+      }
     ],
   },
 ]);

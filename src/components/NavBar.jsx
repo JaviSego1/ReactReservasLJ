@@ -57,9 +57,10 @@ function NavBar() {
                     <Nav.Link as={Link} to="/instalaciones">Instalaciones</Nav.Link>
                   </>
             ): (<></>)}
-            {isLogged ? (
+            {tipoUsuario == "ADMIN" ? (
               <>                                
                 <Nav.Link as={Link} to="/mis-reservas">Mis reservas</Nav.Link>
+                <Nav.Link as={Link} to ="/horarios">Horarios</Nav.Link>
                 <Nav.Link onClick={handleLogout}>Logout</Nav.Link>
               </>
             ) : (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Form } from "react-bootstrap";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
 
 const HorarioForm = () => {
@@ -10,87 +10,99 @@ const HorarioForm = () => {
     const [hora_fin, setHoraFin] = useState('');
     const [instalacion, setInstalacion] = useState('');
     const [instalaciones, setInstalaciones] = useState([]);
-    const [error, setError] = useState("");
+    const [error, setError] = useState('');
 
     const navigate = useNavigate();
     const ruta = useLocation();
 
     const estado = () => {
-        if (ruta.pathname.includes("add")) return "add";
-        if (ruta.pathname.includes("del")) return "del";
-        if (ruta.pathname.includes("edit")) return "edit";
+        if (ruta.pathname.includes('add')) return 'add';
+        if (ruta.pathname.includes('del')) return 'del';
+        if (ruta.pathname.includes('edit')) return 'edit';
     };
-
-    useEffect(() => {
-        const fetchInstalaciones = async () => {
-            try {
-                const response = await api.get("/instalacion");
-                setInstalaciones(response.data);
-            } catch (err) {
-                setError("Error al cargar las instalaciones");
-                console.error(err);
-            }
-        };
-        fetchInstalaciones();
-    }, []);
-
-    useEffect(() => {
-        if (estado() !== "add") {
-            const fetchHorario = async () => {
-                try {
-                    const response = await api.get(`/horario/${_id}`);
-                    const data = response.data;
-                    setHoraInicio(new Date(data.hora_inicio.$date).toISOString().substring(11, 16));
-                    setHoraFin(new Date(data.hora_fin.$date).toISOString().substring(11, 16));
-                    setInstalacion(data.instalacion._id?.$oid || data.instalacion._id);
-                } catch (err) {
-                    setError("Error al cargar el horario");
-                }
-            };
-            fetchHorario();
-        }
-    }, [_id]);
 
     const manejaForm = async (event) => {
         event.preventDefault();
         try {
-            const payload = {
-                hora_inicio: new Date(`1970-01-01T${hora_inicio}:00.000Z`).toISOString(),
-                hora_fin: new Date(`1970-01-01T${hora_fin}Z`).toISOString(),
-                instalacion,
-            };
+            const response = estado() === 'add'
+                ? await api.post('/horario', { hora_inicio, hora_fin, instalacion })
+                : await api.put(`/horario/${_id}`, { hora_inicio, hora_fin, instalacion });
 
-            if (estado() === "add") {
-                await api.post("/horario", payload);
-            } else {
-                await api.put(`/horario/${_id}`, payload);
-            }
-            navigate("/horario");
+            console.log(response);
+            navigate('/horario');
         } catch (err) {
-            setError("No se pudo completar la solicitud");
+            setError('No se puede completar la petición');
+            console.log(err);
         }
     };
 
     const deleteForm = async (event) => {
         event.preventDefault();
         try {
-            await api.delete(`/horario/${_id}`);
-            navigate("/horario");
+            const response = await api.delete(`/horario/${_id}`);
+            console.log(response);
+            navigate('/horario');
         } catch (err) {
-            setError("No se pudo completar la eliminación");
+            setError('No se puede completar la petición');
+            console.log(err);
         }
     };
 
-    const manejaAtras = () => {
+    const manejaAtras = (event) => {
+        event.preventDefault();
         navigate(-1);
     };
 
+    useEffect(() => {
+        const fetchInstalaciones = async () => {
+            try {
+                const response = await api.get('/instalacion');
+                setInstalaciones(response.data);
+            } catch (err) {
+                setError('Error cargando instalaciones');
+                console.log(err);
+            }
+        };
+        fetchInstalaciones();
+    }, []);
+
+    useEffect(() => {
+        if (estado() === 'edit' || estado() === 'del') {
+            const obtenerHorario = async () => {
+                try {
+                    const response = await api.get(`/horario/${_id}`);
+                    const horaInicioBackend = response.data.hora_inicio;
+                    const horaFinBackend = response.data.hora_fin;
+
+                    const horaInicioFormateada = typeof horaInicioBackend === 'object' 
+                        ? horaInicioBackend.$date 
+                        : horaInicioBackend;
+                    const horaFinFormateada = typeof horaFinBackend === 'object' 
+                        ? horaFinBackend.$date 
+                        : horaFinBackend;
+
+                    setHoraInicio(new Date(horaInicioFormateada).toISOString().slice(11, 16)); 
+                    setHoraFin(new Date(horaFinFormateada).toISOString().slice(11, 16)); 
+                    setInstalacion(response.data.instalacion._id.$oid || response.data.instalacion._id);
+                } catch (err) {
+                    setError('No se puede completar la operación');
+                    console.error(err);
+                }
+            };
+            obtenerHorario();
+        }
+    }, [_id, estado()]);
+
     return (
-        <Form onSubmit={estado() === "del" ? deleteForm : manejaForm}>
-            {error && <p className="text-danger">{error}</p>}
+        <Form>
             <Form.Group className="mb-3">
                 <Form.Label>ID:</Form.Label>
-                <Form.Control type="text" value={_id || "Nuevo"} disabled />
+                <Form.Control
+                    type="text"
+                    placeholder="ID del Horario"
+                    disabled
+                    value={_id}
+                />
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -98,8 +110,8 @@ const HorarioForm = () => {
                 <Form.Control
                     type="time"
                     value={hora_inicio}
+                    disabled={estado() === 'del'}
                     onChange={(e) => setHoraInicio(e.target.value)}
-                    disabled={estado() === "del"}
                 />
             </Form.Group>
 
@@ -108,43 +120,43 @@ const HorarioForm = () => {
                 <Form.Control
                     type="time"
                     value={hora_fin}
+                    disabled={estado() === 'del'}
                     onChange={(e) => setHoraFin(e.target.value)}
-                    disabled={estado() === "del"}
                 />
             </Form.Group>
 
             <Form.Group className="mb-3">
                 <Form.Label>Instalación:</Form.Label>
-                <Form.Control
-                    as="select"
+                <Form.Select
                     value={instalacion}
+                    disabled={estado() === 'del'}
                     onChange={(e) => setInstalacion(e.target.value)}
-                    disabled={estado() === "del"}
                 >
                     <option value="">Selecciona una instalación</option>
-                    {instalaciones.map((inst) => (
-                        <option key={inst._id?.$oid || inst._id} value={inst._id?.$oid || inst._id}>
-                            {inst.nombre}
-                        </option>
-                    ))}
-                </Form.Control>
+                    {instalaciones.map(inst => {
+                        const instId = inst._id?.$oid || inst._id;
+                        return (
+                            <option key={instId} value={instId}>
+                                {inst.nombre}
+                            </option>
+                        );
+                    })}
+                </Form.Select>
+
             </Form.Group>
 
             <Form.Group className="mb-3">
-                {estado() !== "del" ? (
-                    <Button type="submit" className="btn-success">
-                        {estado() === "add" ? "Crear" : "Actualizar"}
-                    </Button>
-                ) : (
-                    <Button onClick={deleteForm} className="btn-danger">
-                        Eliminar
-                    </Button>
-                )}
-
-                <Button variant="secondary" onClick={manejaAtras} className="ms-2">
-                    Cancelar
-                </Button>
+                {
+                    {
+                        'add': <Button className="btn-success" onClick={manejaForm}>Crear</Button>,
+                        'edit': <Button className="btn-success" onClick={manejaForm}>Actualizar</Button>,
+                        'del': <Button className="btn-danger" onClick={deleteForm}>Eliminar</Button>
+                    }[estado()]
+                }
+                <Button as={Link} onClick={manejaAtras}>Cancelar</Button>
             </Form.Group>
+
+            {error && <p style={{ color: 'red' }}>{error}</p>}
         </Form>
     );
 };

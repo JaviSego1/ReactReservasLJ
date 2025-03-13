@@ -108,8 +108,8 @@ const HorariosList = () => {
                     {currentItems.map((horario) => (
                         <tr key={horario._id}>
                             <td>{horario._id}</td>
-                            <td>{horario.hora_inicio}</td>
-                            <td>{horario.hora_fin}</td>
+                            <td>{horario.hora_inicio.slice(0, 8)}</td>
+                            <td>{horario.hora_fin.slice(0, 8)}</td>
                             <td>{horario.instalacion?.nombre || "Sin instalación"}</td>
                             <td>
                                 <Button as={Link} to={`/horario/edit/${horario._id}`} className="btn-success">

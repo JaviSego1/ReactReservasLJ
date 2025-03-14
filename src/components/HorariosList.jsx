@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Container, Table, Form } from "react-bootstrap";
+import { Button, Container, Table, Form, Modal } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 
@@ -9,6 +9,8 @@ const HorariosList = () => {
     const [instalaciones, setInstalaciones] = useState([]);
     const [instalacionSeleccionada, setInstalacionSeleccionada] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [selectedHorario, setSelectedHorario] = useState(null);
     const itemsPerPage = 10;
     const navigate = useNavigate();
 
@@ -35,7 +37,7 @@ const HorariosList = () => {
             }
         };
         fetchHorarios();
-    }, []);
+    }, [navigate]);
 
     useEffect(() => {
         const fetchInstalaciones = async () => {
@@ -75,8 +77,26 @@ const HorariosList = () => {
         }
     };
 
+    const handleShowDelete = (horario) => {
+        setSelectedHorario(horario);
+        setShowDeleteModal(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        try {
+            await api.delete(`/horario/${selectedHorario._id}`);
+            const updatedHorarios = horarios.filter(h => h._id !== selectedHorario._id);
+            setHorarios(updatedHorarios);
+            setHorariosFiltrados(updatedHorarios);
+            setShowDeleteModal(false);
+        } catch (err) {
+            console.error("Error eliminando horario:", err);
+        }
+    };
+
     return (
         <Container>
+            <h1 className="my-4">Listado de Horarios</h1>
 
             <Form.Group className="mb-3">
                 <Form.Label>Filtrar por Instalación:</Form.Label>
@@ -93,7 +113,7 @@ const HorariosList = () => {
                 </Form.Select>
             </Form.Group>
 
-            <Table>
+            <Table striped bordered hover>
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -112,12 +132,15 @@ const HorariosList = () => {
                             <td>{horario.hora_fin.slice(0, 8)}</td>
                             <td>{horario.instalacion?.nombre || "Sin instalación"}</td>
                             <td>
-                                <Button as={Link} to={`/horario/edit/${horario._id}`} className="btn-success">
+                                <Button as={Link} to={`/horario/edit/${horario._id}`} variant="success">
                                     Editar
                                 </Button>
                             </td>
                             <td>
-                                <Button as={Link} to={`/horario/del/${horario._id}`} className="btn-danger">
+                                <Button 
+                                    variant="danger" 
+                                    onClick={() => handleShowDelete(horario)}
+                                >
                                     Eliminar
                                 </Button>
                             </td>
@@ -131,6 +154,30 @@ const HorariosList = () => {
                 <span className="mx-3">Página {currentPage} de {Math.ceil(horariosFiltrados.length / itemsPerPage)}</span>
                 <Button onClick={nextPage} disabled={currentPage === Math.ceil(horariosFiltrados.length / itemsPerPage)}>Siguiente</Button>
             </div>
+
+            <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Confirmar Eliminación</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {selectedHorario && (
+                        <>
+                            <p>¿Estás seguro de eliminar este horario?</p>
+                            <p><strong>Hora inicio:</strong> {selectedHorario.hora_inicio.slice(0, 8)}</p>
+                            <p><strong>Hora fin:</strong> {selectedHorario.hora_fin.slice(0, 8)}</p>
+                            <p><strong>Instalación:</strong> {selectedHorario.instalacion?.nombre}</p>
+                        </>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+                        Cancelar
+                    </Button>
+                    <Button variant="danger" onClick={handleConfirmDelete}>
+                        Eliminar
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </Container>
     );
 };

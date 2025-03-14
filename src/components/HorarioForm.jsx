@@ -6,157 +6,150 @@ import api from "../services/api";
 const HorarioForm = () => {
     let { _id } = useParams();
 
-    const [hora_inicio, setHoraInicio] = useState('');
-    const [hora_fin, setHoraFin] = useState('');
-    const [instalacion, setInstalacion] = useState('');
+    const [horaInicio, setHoraInicio] = useState('');
+    const [horaFin, setHoraFin] = useState('');
     const [instalaciones, setInstalaciones] = useState([]);
+    const [instalacionSeleccionada, setInstalacionSeleccionada] = useState('');
     const [error, setError] = useState('');
 
     const navigate = useNavigate();
     const ruta = useLocation();
 
-    const estado = () => {
-        if (ruta.pathname.includes('add')) return 'add';
-        if (ruta.pathname.includes('del')) return 'del';
-        if (ruta.pathname.includes('edit')) return 'edit';
-    };
+    const estado = ruta.pathname.includes("add")
+        ? "add"
+        : ruta.pathname.includes("del")
+        ? "del"
+        : "edit";
+
+    useEffect(() => {
+        const obtenerInstalaciones = async () => {
+            try {
+                const response = await api.get("/instalacion");
+                const corregidoOid = response.data.map(item => ({
+                    ...item,
+                    _id: item._id.$oid,
+                }));
+                setInstalaciones(corregidoOid);
+            } catch (err) {
+                console.error("Error al obtener instalaciones:", err);
+            }
+        };
+        obtenerInstalaciones();
+    }, []);
+
+    useEffect(() => {
+        if ((estado === "edit" || estado === "del") && _id) {
+            const obtenerHorario = async () => {
+                try {
+                    const response = await api.get(`/horario/${_id}`);
+                    const { hora_inicio, hora_fin, instalacion } = response.data;
+    
+                    if (!hora_inicio || !hora_fin) {
+                        throw new Error("Datos de horario incompletos");
+                    }
+    
+                    const horaInicioFormateada = String(hora_inicio).slice(11, 16);
+                    const horaFinFormateada = String(hora_fin).slice(11, 16);
+    
+                    setHoraInicio(horaInicioFormateada); 
+                    setHoraFin(horaFinFormateada); 
+                    setInstalacionSeleccionada(instalacion?._id?.$oid || "");
+                } catch (err) {
+                    setError("No se puede completar la operación");
+                    console.error("Error al obtener el horario:", err);
+                }
+            };
+            obtenerHorario();
+        }
+    }, [_id, ruta.pathname]);
+    
 
     const manejaForm = async (event) => {
         event.preventDefault();
         try {
-            const response = estado() === 'add'
-                ? await api.post('/horario', { hora_inicio, hora_fin, instalacion })
-                : await api.put(`/horario/${_id}`, { hora_inicio, hora_fin, instalacion });
+            const fechaActual = new Date().toISOString().split("T")[0];
+            const horaInicioISO = `${fechaActual}T${horaInicio}:00.000Z`;
+            const horaFinISO = `${fechaActual}T${horaFin}:00.000Z`;
 
-            console.log(response);
-            navigate('/horario');
+            const data = {
+                horaInicio: horaInicioISO,
+                horaFin: horaFinISO,
+                instalacion: instalacionSeleccionada,
+            };
+
+            console.log("Datos enviados:", data);
+
+            if (estado === "add") {
+                await api.post("/horario", data);
+            } else if (estado === "edit") {
+                await api.put(`/horario/${_id}`, data);
+            }
+            navigate("/horarios");
         } catch (err) {
-            setError('No se puede completar la petición');
-            console.log(err);
+            setError("No se puede completar la petición");
+            console.error("Error en la petición:", err);
         }
     };
 
     const deleteForm = async (event) => {
         event.preventDefault();
         try {
-            const response = await api.delete(`/horario/${_id}`);
-            console.log(response);
-            navigate('/horario');
+            await api.delete(`/horario/${_id}`);
+            navigate("/horarios");
         } catch (err) {
-            setError('No se puede completar la petición');
-            console.log(err);
+            setError("No se puede completar la petición");
+            console.error(err);
         }
     };
 
-    const manejaAtras = (event) => {
-        event.preventDefault();
-        navigate(-1);
-    };
-
-    useEffect(() => {
-        const fetchInstalaciones = async () => {
-            try {
-                const response = await api.get('/instalacion');
-                setInstalaciones(response.data);
-            } catch (err) {
-                setError('Error cargando instalaciones');
-                console.log(err);
-            }
-        };
-        fetchInstalaciones();
-    }, []);
-
-    useEffect(() => {
-        if (estado() === 'edit' || estado() === 'del') {
-            const obtenerHorario = async () => {
-                try {
-                    const response = await api.get(`/horario/${_id}`);
-                    const horaInicioBackend = response.data.hora_inicio;
-                    const horaFinBackend = response.data.hora_fin;
-
-                    const horaInicioFormateada = typeof horaInicioBackend === 'object' 
-                        ? horaInicioBackend.$date 
-                        : horaInicioBackend;
-                    const horaFinFormateada = typeof horaFinBackend === 'object' 
-                        ? horaFinBackend.$date 
-                        : horaFinBackend;
-
-                    setHoraInicio(new Date(horaInicioFormateada).toISOString().slice(11, 16)); 
-                    setHoraFin(new Date(horaFinFormateada).toISOString().slice(11, 16)); 
-                    setInstalacion(response.data.instalacion._id.$oid || response.data.instalacion._id);
-                } catch (err) {
-                    setError('No se puede completar la operación');
-                    console.error(err);
-                }
-            };
-            obtenerHorario();
-        }
-    }, [_id, estado()]);
+    const manejaAtras = () => navigate(-1);
 
     return (
         <Form>
             <Form.Group className="mb-3">
                 <Form.Label>ID:</Form.Label>
-                <Form.Control
-                    type="text"
-                    placeholder="ID del Horario"
-                    disabled
-                    value={_id}
-                />
+                <Form.Control type="text" disabled value={_id} />
             </Form.Group>
-
             <Form.Group className="mb-3">
-                <Form.Label>Hora Inicio:</Form.Label>
+                <Form.Label>Hora de inicio:</Form.Label>
                 <Form.Control
                     type="time"
-                    value={hora_inicio}
-                    disabled={estado() === 'del'}
+                    disabled={estado === "del"}
+                    value={horaInicio}
                     onChange={(e) => setHoraInicio(e.target.value)}
                 />
             </Form.Group>
-
             <Form.Group className="mb-3">
-                <Form.Label>Hora Fin:</Form.Label>
+                <Form.Label>Hora de fin:</Form.Label>
                 <Form.Control
                     type="time"
-                    value={hora_fin}
-                    disabled={estado() === 'del'}
+                    disabled={estado === "del"}
+                    value={horaFin}
                     onChange={(e) => setHoraFin(e.target.value)}
                 />
             </Form.Group>
-
             <Form.Group className="mb-3">
                 <Form.Label>Instalación:</Form.Label>
                 <Form.Select
-                    value={instalacion}
-                    disabled={estado() === 'del'}
-                    onChange={(e) => setInstalacion(e.target.value)}
+                    value={instalacionSeleccionada}
+                    onChange={(e) => setInstalacionSeleccionada(e.target.value)}
+                    disabled={estado === "del"}
                 >
                     <option value="">Selecciona una instalación</option>
-                    {instalaciones.map(inst => {
-                        const instId = inst._id?.$oid || inst._id;
-                        return (
-                            <option key={instId} value={instId}>
-                                {inst.nombre}
-                            </option>
-                        );
-                    })}
+                    {instalaciones.map(instalacion => (
+                        <option key={instalacion._id} value={instalacion._id}>
+                            {instalacion.nombre}
+                        </option>
+                    ))}
                 </Form.Select>
-
             </Form.Group>
-
             <Form.Group className="mb-3">
-                {
-                    {
-                        'add': <Button className="btn-success" onClick={manejaForm}>Crear</Button>,
-                        'edit': <Button className="btn-success" onClick={manejaForm}>Actualizar</Button>,
-                        'del': <Button className="btn-danger" onClick={deleteForm}>Eliminar</Button>
-                    }[estado()]
-                }
-                <Button as={Link} onClick={manejaAtras}>Cancelar</Button>
+                {estado === "add" && <Button variant="success" onClick={manejaForm}>Alta</Button>}
+                {estado === "edit" && <Button variant="success" onClick={manejaForm}>Actualizar</Button>}
+                {estado === "del" && <Button variant="danger" onClick={deleteForm}>Borrar</Button>}
+                <Button variant="secondary" onClick={manejaAtras} className="ms-2">Cancelar</Button>
             </Form.Group>
-
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {error && <p style={{ color: "red" }}>{error}</p>}
         </Form>
     );
 };
